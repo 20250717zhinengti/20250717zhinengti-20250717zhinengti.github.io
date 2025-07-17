@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>初中课程评分系统</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .tab-container {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #f1f1f1;
+            margin-right: 5px;
+            border-radius: 5px 5px 0 0;
+        }
+        .tab.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .score-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .score-table th, .score-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .score-table th {
+            background-color: #f2f2f2;
+        }
+        .score-table input {
+            width: 60px;
+            padding: 5px;
+            text-align: center;
+        }
+        .button-group {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .summary-container {
+            margin-top: 30px;
+            display: none;
+        }
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .combined-summary {
+            margin-top: 30px;
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>初中课程评分系统</h1>
+        <div class="tab-container">
+            <div class="tab active" onclick="switchSubject('math')">数学</div>
+            <div class="tab" onclick="switchSubject('chinese')">语文</div>
+            <div class="tab" onclick="switchSubject('english')">英语</div>
+        </div>
+
+        <table class="score-table" id="scoreTable">
+            <thead>
+                <tr>
+                    <th>组别</th>
+                    <th>独学分 (≤6)</th>
+                    <th>合学分 (≤3)</th>
+                    <th>领学分 (≤2)</th>
+                    <th>点评分</th>
+                    <th>附加分 (≤2)</th>
+                    <th>总分</th>
+                    <th>排名</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- 动态生成9个组的输入行 -->
+            </tbody>
+        </table>
+
+        <div class="button-group">
+            <button onclick="calculateTotal()">计算总分</button>
+            <button onclick="saveData()">保存数据</button>
+            <button onclick="showSummary()">查看汇总</button>
+            <button onclick="resetForm()">重置表格</button>
+        </div>
+
+        <!-- 单科汇总模块 -->
+        <div class="summary-container" id="summaryContainer">
+            <h2>单科汇总</h2>
+            <div>
+                <label for="startDate">开始日期:</label>
+                <input type="date" id="startDate">
+                <label for="endDate">结束日期:</label>
+                <input type="date" id="endDate">
+                <button onclick="generateReport()">生成报告</button>
+            </div>
+            <table class="summary-table" id="summaryTable"></table>
+        </div>
+
+        <!-- 三科总分汇总模块 -->
+        <div class="combined-summary">
+            <h2>三科总分汇总</h2>
+            <table class="summary-table" id="combinedTable">
+                <thead>
+                    <tr>
+                        <th>组别</th>
+                        <th>语文总分</th>
+                        <th>数学总分</th>
+                        <th>英语总分</th>
+                        <th>三科总分</th>
+                        <th>综合排名</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // 当前选中的科目
+        let currentSubject = 'math';
+        // 存储所有数据
+        let allData = {
+            math: [],
+            chinese: [],
+            english: []
+        };
+
+        // 初始化表格（生成9个组的输入行）
+        function initTable() {
+            const tbody = document.querySelector('#scoreTable tbody');
+            tbody.innerHTML = '';
+            
+            for (let i = 1; i <= 9; i++) {
+                const row = document.createElement('tr');
+                
+                // 组别单元格
+                const groupCell = document.createElement('td');
+                groupCell.textContent = `${i}组`;
+                row.appendChild(groupCell);
+                
+                // 独学分
+                const independentCell = document.createElement('td');
+                const independentInput = document.createElement('input');
+                independentInput.type = 'number';
+                independentInput.min = '0';
+                independentInput.max = '6';
+                independentInput.dataset.type = 'independent';
+                independentInput.dataset.group = i;
+                independentCell.appendChild(independentInput);
+                row.appendChild(independentCell);
+                
+                // 合学分
+                const cooperativeCell = document.createElement('td');
+                const cooperativeInput = document.createElement('input');
+                cooperativeInput.type = 'number';
+                cooperativeInput.min = '0';
+                cooperativeInput.max = '3';
+                cooperativeInput.dataset.type = 'cooperative';
+                cooperativeInput.dataset.group = i;
+                cooperativeCell.appendChild(cooperativeInput);
+                row.appendChild(cooperativeCell);
+                
+                // 领学分
+                const leadershipCell = document.createElement('td');
+                const leadershipInput = document.createElement('input');
+                leadershipInput.type = 'number';
+                leadershipInput.min = '0';
+                leadershipInput.max = '2';
+                leadershipInput.dataset.type = 'leadership';
+                leadershipInput.dataset.group = i;
+                leadershipCell.appendChild(leadershipInput);
+                row.appendChild(leadershipCell);
+                
+                // 点评分
+                const commentCell = document.createElement('td');
+                const commentInput = document.createElement('input');
+                commentInput.type = 'number';
+                commentInput.min = '0';
+                commentInput.dataset.type = 'comment';
+                commentInput.dataset.group = i;
+                commentCell.appendChild(commentInput);
+                row.appendChild(commentCell);
+                
+                // 附加分
+                const extraCell = document.createElement('td');
+                const extraInput = document.createElement('input');
+                extraInput.type = 'number';
+                extraInput.min = '0';
+                extraInput.max = '2';
+                extraInput.dataset.type = 'extra';
+                extraInput.dataset.group = i;
+                extraCell.appendChild(extraInput);
+                row.appendChild(extraCell);
+                
+                // 总分
+                const totalCell = document.createElement('td');
+                totalCell.dataset.group = i;
+                totalCell.className = 'total-score';
+                totalCell.textContent = '0';
+                row.appendChild(totalCell);
+                
+                // 排名
+                const rankCell = document.createElement('td');
+                rankCell.dataset.group = i;
+                rankCell.className = 'rank';
+                rankCell.textContent = '-';
+                row.appendChild(rankCell);
+                
+                tbody.appendChild(row);
+            }
+
+            // 为所有输入框添加事件监听
+            document.querySelectorAll('.score-table input').forEach(input => {
+                input.addEventListener('input', calculateTotal);
+            });
+        }
+
+        // 计算总分和排名
+        function calculateTotal() {
+            const groups = [];
+            
+            // 计算每组总分
+            for (let i = 1; i <= 9; i++) {
+                const independent = parseFloat(document.querySelector(`input[data-type="independent"][data-group="${i}"]`).value) || 0;
+                const cooperative = parseFloat(document.querySelector(`input[data-type="cooperative"][data-group="${i}"]`).value) || 0;
+                const leadership = parseFloat(document.querySelector(`input[data-type="leadership"][data-group="${i}"]`).value) || 0;
+                const comment = parseFloat(document.querySelector(`input[data-type="comment"][data-group="${i}"]`).value) || 0;
+                const extra = parseFloat(document.querySelector(`input[data-type="extra"][data-group="${i}"]`).value) || 0;
+                
+                // 计算总分（不超过各分项上限）
+                const total = Math.min(independent, 6) + Math.min(cooperative, 3) + Math.min(leadership, 2) + comment + Math.min(extra, 2);
+                
+                document.querySelector(`td.total-score[data-group="${i}"]`).textContent = total;
+                groups.push({ group: i, total });
+            }
+            
+            // 计算排名（处理并列情况）
+            groups.sort((a, b) => b.total - a.total);
+            let currentRank = 1;
+            groups.forEach((group, index) => {
+                if (index > 0 && group.total !== groups[index-1].total) {
+                    currentRank = index + 1;
+                }
+                document.querySelector(`td.rank[data-group="${group.group}"]`).textContent = currentRank;
+            });
+        }
+
+        // 保存数据
+        function saveData() {
+            calculateTotal(); // 确保总分已计算
+            
+            const data = {
+                date: new Date().toISOString().split('T')[0],
+                groups: []
+            };
+            
+            for (let i = 1; i <= 9; i++) {
+                const groupData = {
+                    group: i,
+                    independent: parseFloat(document.querySelector(`input[data-type="independent"][data-group="${i}"]`).value) || 0,
+                    cooperative: parseFloat(document.querySelector(`input[data-type="cooperative"][data-group="${i}"]`).value) || 0,
+                    leadership: parseFloat(document.querySelector(`input[data-type="leadership"][data-group="${i}"]`).value) || 0,
+                    comment: parseFloat(document.querySelector(`input[data-type="comment"][data-group="${i}"]`).value) || 0,
+                    extra: parseFloat(document.querySelector(`input[data-type="extra"][data-group="${i}"]`).value) || 0,
+                    total: parseFloat(document.querySelector(`td.total-score[data-group="${i}"]`).textContent) || 0,
+                    rank: parseInt(document.querySelector(`td.rank[data-group="${i}"]`).textContent) || 0
+                };
+                
+                data.groups.push(groupData);
+            }
+            
+            allData[currentSubject].push(data);
+            alert(`已保存${getSubjectName(currentSubject)}课程数据`);
+            
+            // 重置表格
+            initTable();
+            // 更新三科汇总
+            calculateCombinedScores();
+        }
+
+        // 计算三科总分汇总
+        function calculateCombinedScores() {
+            const combinedData = [];
+            
+            // 计算每组的三科累计总分
+            for (let group = 1; group <= 9; group++) {
+                const groupScores = {
+                    group,
+                    chinese: sumSubjectScores('chinese', group),
+                    math: sumSubjectScores('math', group),
+                    english: sumSubjectScores('english', group),
+                    total: 0
+                };
+                groupScores.total = groupScores.chinese + groupScores.math + groupScores.english;
+                combinedData.push(groupScores);
+            }
+            
+            // 计算综合排名
+            combinedData.sort((a, b) => b.total - a.total);
+            let currentRank = 1;
+            combinedData.forEach((item, index) => {
+                if (index > 0 && item.total !== combinedData[index-1].total) {
+                    currentRank = index + 1;
+                }
+                item.rank = currentRank;
+            });
+            
+            // 按组号排序后渲染
+            combinedData.sort((a, b) => a.group - b.group);
+            renderCombinedTable(combinedData);
+        }
+
+        // 辅助函数：计算某科目某组的累计总分
+        function sumSubjectScores(subject, group) {
+            return allData[subject].reduce((sum, lesson) => {
+                const groupData = lesson.groups.find(g => g.group === group);
+                return sum + (groupData?.total || 0);
+            }, 0);
+        }
+
+        // 渲染三科汇总表格
+        function renderCombinedTable(data) {
+            const tbody = document.querySelector('#combinedTable tbody');
+            tbody.innerHTML = '';
+            
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.group}组</td>
+                    <td>${item.chinese}</td>
+                    <td>${item.math}</td>
+                    <td>${item.english}</td>
+                    <td>${item.total}</td>
+                    <td>${item.rank}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initTable();
+        });
+    </script>
+</body>
+</html>
